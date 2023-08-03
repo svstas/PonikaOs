@@ -1,0 +1,14 @@
+{
+    "hostName":"ponika", 
+    "password":"josperado",
+    "http_username":"admin",
+    "http_password":"admin",
+    "ssid":"S1812",
+    "passwd":"0676000128",
+    "ota":1,
+    "bluetooth":0,
+    "tcp":1,
+    "wifi":2
+}
+
+

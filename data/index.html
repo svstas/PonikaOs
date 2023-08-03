@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <title>Ponika Mic & others</title>
+    <link rel="stylesheet" type="text/css" href="/xcss/styles.css">
+    <script src="/xjs/jquery-2.1.1.min.js"></script>
+<!--
+    <script src="/xjs/slider.js"></script>
+    <script src="/js/p5.sound.js"></script> //-->
+    <style type="text/css" media="screen"></style>
+    <script type="text/javascript">
+    
+    if (top.location.toString().match(/.*\d+\.\d+\.\d+\.\d+\/?/)) console.log('ok');
+    else top.location.href="/realip";
+ //Slider mousedown (with mousemove and mouseup) handler.
+
+//Moves slider bar.
+function moveSliderBar($bar, $fill, percent, barWidth) {
+	$bar.css('left', 'calc('+percent+'% - '+(barWidth / 2)+'px)');
+	$fill.css('width', 'calc('+percent+'% - '+(barWidth / 2)+'px)');
+}
+
+    var xhistory = Array(); 
+    var pp=0;
+    top.xcommand = "";
+    let getBytes = 0; 
+    var ws = null;
+    var es = null;
+    var serverTime = 0;
+    
+
+
+    function ge(s){ return document.getElementById(s);}
+    function ce(s){ return document.createElement(s);}
+    function stb(){ xdiv = ge("dbg");if (xdiv) xdiv.scrollTop = xdiv.scrollHeight - xdiv.clientHeight+50;}
+    function stbx(){ xdiv = ge("work");xdiv.scrollLeft=0;xdiv.scrollTop=xdiv.scrollHeight-xdiv.clientHeight;ge("input_el").focus();}
+
+document.onkeydown = function(e) {
+    e = e || window.event;
+
+if (e.srcElement.id == "input_el") {
+
+//        console.log(e);
+        if(e.keyCode == 13 && ge("input_el").value != ""){
+          val = ge("input_el").value.toLowerCase();
+          addMessage("<font color=#CCCCCC>&raquo;</font> "+val,1);          
+          top.xcommand = val;
+          xhistory[pp]=val;pp++;
+          if (val=="s") {startSocket(); ge("input_el").value=''; return}
+//          console.log('enter');
+          var client1 = new XMLHttpRequest();client1.open('GET', '/_cmd?cmd='+val);
+          client1.onreadystatechange = function() {
+//            console.log(this.readyState);
+            if (this.readyState==4) parent.addMessage(client1.responseText);
+                
+          };                                                                                                                                                   
+          client1.send();   
+          ge("input_el").value = "";
+        } else if (e.keyCode==38) { 
+              e.returnValue=false;pp--; if (xhistory[pp]) {ge("input_el").value = xhistory[pp]+'';
+              ge("input_el").selectionStart = ge("input_el").value.length;} else pp++;
+        } else if (e.keyCode==40) {
+              e.returnValue=false;pp++; if (xhistory[pp]) ge("input_el").value = xhistory[pp]+''; else pp--;
+        } 
+      stbx();
+
+  
+} else ge("input_el").focus();
+	  return true;
+}
+
+
+//    function stb(){ dbg.scrollTo(0, document.body.scrollHeight || document.documentElement.scrollHeight); }
+    function sendBlob(str){
+      var buf = new Uint8Array(str.length);
+      for (var i = 0; i < str.length; ++i) buf[i] = str.charCodeAt(i);
+      ws.send(buf);
+    }
+    function addMessage(m,x=0){
+      var msg = ce("div");
+      if (!x) msg.style='padding-left:16px';
+//      msg.innerHTML = "<font color=#CCCCCC>&raquo;</font> "+m;
+      msg.innerHTML = m;
+      ge("dbg").appendChild(msg);
+      stbx();
+    }
+
+const byteToHex = [];
+
+for (let n = 0; n <= 0xff; ++n)
+{
+    const hexOctet = n.toString(16).padStart(2, "0").toUpperCase();;
+    byteToHex.push(hexOctet);
+}
+
+function hex(arrayBuffer)
+{
+    const buff = new Uint8Array(arrayBuffer);
+    const hexOctets = []; // new Array(buff.length) is even faster (preallocates necessary array size), then use hexOctets[i] instead of .push()
+    for (let i = 0; i < buff.length; ++i)
+        hexOctets.push(byteToHex[buff[i]]);
+    return hexOctets.join(" ");
+}
+
+
+      xstarted = false;
+        var channels = 1;
+        let subcounter = 0;
+        let audiobuffer = [];
+        var audioCtx = 0;
+        var frameCount = 0;
+        var xgain = 1;
+        function play(soundName) {
+
+//          if (audiobuffer[subcounter]) 
+
+//        if (typeof audiobuffer[subcounter] !== 'undefined') {
+          if (typeof audiobuffer[subcounter] == 'undefined') {
+            
+              setTimeout(()=>{play('test')},1);
+            return;
+          }
+          frameCount = audiobuffer[subcounter].length;
+//        else setTimeout(()=>{play('test');},125);
+                          
+//            var myAudioBuffer = audioCtx.createBuffer(channels, frameCount, 16000);
+            var myAudioBuffer = audioCtx.createBuffer(channels, frameCount, 22050);
+//            var myAudioBuffer = audioCtx.createBuffer(channels, frameCount, 44100);
+
+
+            for (var channel = 0; channel < channels; channel++) {
+                var nowBuffering = myAudioBuffer.getChannelData(channel);
+                for (var i = 0; i < frameCount; i++) {
+                    // audio needs to be in [-1.0; 1.0]
+                    var word = audiobuffer[subcounter][i];
+                    nowBuffering[i] = ((word + 32768) % 65536 - 32768) / 32768.0;
+                }
+            }
+
+            subcounter += 1;
+            var source = audioCtx.createBufferSource();
+            var gain = audioCtx.createGain();
+            gain.connect(audioCtx.destination);
+            gain.gain.value = xgain;
+//  var gainNode = aCtx.createGain()
+//gainNode.gain.value = 0.1 // 10 %
+//gainNode.connect(aCtx.destination)
+
+// now instead of connecting to aCtx.destination, connect to the gainNode
+            source.buffer = myAudioBuffer;
+//            source.connect(audioCtx.destination);
+            source.connect(gain);
+            source.onended = play;
+            source.start();
+//        }
+        }
+
+
+skipper = 0;
+var oxtime,nxtime,xstep,insec,getbytes;
+xstep = 0; insex = 0;getbytes = 0;
+
+    function startSocket(){
+      
+      ws = new WebSocket('ws://'+document.location.host+'/ws',['arduino']);
+      ws.binaryType = "arraybuffer";
+      
+      ws.onopen = function(e){
+        addMessage("Socket Connected");
+      };
+
+      ws.onclose = function(e){addMessage("Соединение закрыто");};
+      ws.onerror = function(e){console.log("ws error", e);addMessage("Error");};
+
+      ws.onmessage = function(e){
+        var msg = "";
+        if(e.data instanceof ArrayBuffer){
+        if (!xstarted) {
+         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+         $('#slider').css('visibility', 'visible');
+        }  
+
+//          if (e.data.length<600) return;
+//          if (!e.data.length % 2) {
+            
+//            delete[e.data.length];
+//          }        
+
+//          console.log(e.data,e.data.length);
+
+        buff = new Uint16Array(e.data)
+        old = 0; chng = 0;
+//        for (i in buff) {buff[i]+=300;
+//            if (old && Math.abs(buff[i]/old)>15) chng++;
+//            old = buff[i];
+//        }
+//        console.log(chng); chng=0;
+//        if (buff.length) getBytes +=buff.length;
+        
+/* синхронизация  ----- нужно доделать 
+        oxtime = nxtime;
+        
+        nxtime = new Date().getMilliseconds();
+//        console.log(ntime-otime);
+        xxx = (nxtime-oxtime);
+        if (xxx<0) {xxx = 1000+xxx;console.log('fix');}
+        getbytes += buff.length;
+        console.log(xxx);
+        insec+=xxx;
+        xstep++;
+
+
+        if (xstep>8) {
+          console.log(">>>",insec,getbytes);
+          insec=0;
+          xstep=0;
+          getbytes = 0;
+
+        }
+*/
+
+//        console.log(buff);
+        
+//        console.log(buff);
+
+//        audiobuffer.push(new Uint16Array(e.data));
+        audiobuffer.push(buff);
+ //       play('test');
+
+//        play('test');
+//        console.log(">>",buff.length);
+//        console.log('push',buff.length);
+//        audiobuffer.push(new Uint8Array(e.data));
+//        if (audiobuffer.length>100) {audiobuffer.shift();console.log("-----",audiobuffer.length);}
+//        console.log(audiobuffer);
+        if (!xstarted) {
+                    xstarted = true;
+                    setTimeout(()=>{play('test')},100);
+                    
+        }          
+//        var bytes = new Uint8Array(e.data);
+//        getport(bytes);
+//			  console.log("ok");
+	        return;
+/*
+          msg = "BIN:";
+          var bytes = new Uint8Array(e.data);
+          for (var i = 0; i < bytes.length; i++) {
+            msg += String.fromCharCode(bytes[i]);
+          }
+*/
+
+        } else {
+          msg = e.data;
+
+        }
+        addMessage(msg);
+      };
+      
+      
+      val_tmp = 0;
+    }
+
+    function startEvents(){
+      if (es) es.close();
+      es = new EventSource('/events');
+      es.onreadystatechange = function(state) {
+        console.log(">>>",state);
+      }
+      es.onopen = function(e) {
+        
+//        addMessage("Время : "+serverTime+" : Соединение установлено");
+        addMessage("Events connected");
+
+//      if (top.sstarted && (window.frames['xframe'].contentWindow.startSocket)) 
+//      window.frames['xframe'].contentWindow.
+//         startSocket();
+
+        };
+  
+      es.onerror = function(e) {if (e.target.readyState != EventSource.OPEN) {addMessage("Соединение закрыто");}};
+      es.addEventListener('m', function(e) {addMessage(e.data);},false);
+      es.addEventListener('t', function(e) {
+        serverTime = e.data*1000;
+        console.log(serverTime);
+        var stime = new Date(serverTime);
+        addMessage("Время : "+stime);
+      },false);
+      es.addEventListener('r',function(e) {setRelay(e.data);},false);
+      es.addEventListener('x',function(e) {setSens(e.data);},false);
+      es.addEventListener('c', function(e) {msg = e.data;
+        if (msg=='adcoff') {
+          $('#slider').css('visibility', 'hidden');
+             xstarted = false;
+        }
+      }, false);
+
+//      es.addEventListener('s',function(e) {setTime(e.data.split("|"));},false);
+    }
+/*
+    function startEvents(){
+      var es = new EventSource('/events');
+      es.onopen = function(e) {
+        addMessage("Events Opened");
+      };
+      es.onerror = function(e) {
+        if (e.target.readyState != EventSource.OPEN) {
+          addMessage("Events Closed");
+        }
+      };
+      es.onmessage = function(e) {
+        addMessage("Event: " + e.data);
+        console.log(e.data);
+      };
+      es.addEventListener('ota', function(e) {
+          msg = e.data;
+          if (msg=="CW") if (xgain<2) xgain += 0.1;
+          if (msg=="CCW") if (xgain>0.1) xgain -= 0.1;
+        	moveSliderBar($('#bar'), $('#fill'), xgain*20, $('#bar').outerWidth());
+        addMessage("Event[ota]: " + e.data);
+      }, false);
+      
+      es.addEventListener('data', function(e) {
+        var  xobj = JSON.parse(e.data);
+        console.log(xobj);
+//        addMessage("DATA: " + obj);
+      }, false);
+
+      es.addEventListener('c', function(e) {
+        msg = e.data;
+        if (msg=='adcoff') {
+             $('#slider').css('visibility', 'hidden');
+             xstarted = false;
+        }
+      }, false);
+
+    }
+*/    
+    
+    function startSlider(){
+      
+$('#slider').on('mousedown', function(e) {
+	if(e.which == 1) {
+		//Vars.
+		var $bar = $('#bar');
+		var $fill = $('#fill');
+		var barWidth = $bar.outerWidth();
+		var sliderWidth = $(this).outerWidth();
+		var sliderX = $(this).offset().left;
+		var downX = e.clientX - sliderX; //mousedown xpos within slider
+		var multiplier = 100 / sliderWidth;
+		var curPercent = downX * multiplier;
+		console.log('down: '+downX+', '+curPercent);
+		moveSliderBar($bar, $fill, curPercent, barWidth);
+		//Window mousemove handler.
+
+$(window).on('mousemove.slider', function(e) {
+			var diffX = (e.clientX - sliderX) - downX;
+			var newPercent = curPercent + (diffX * multiplier);
+			if(newPercent <= 0) {
+				newPercent = 0;
+			}
+			if(newPercent >= 100) {
+				newPercent = 100;
+			}
+			console.log('move: '+newPercent+', '+diffX);
+			xgain = newPercent*5/100;
+			
+			moveSliderBar($bar, $fill, newPercent, barWidth);
+})
+		//Window mouseup handler.
+		.on('mouseup.slider', function(e) {
+			console.log('up');
+			$(window).off('mousemove.slider mouseup.slider');
+		});
+	}
+});
+
+			moveSliderBar($('#bar'), $('#fill'), 20, $('#bar').outerWidth());
+
+
+}
+
+//	ge('bar').css('left', 'calc(50% - '+(ge('bar').offsetWidth / 2)+'px)');
+//	ge('fill').css('width', 'calc(50% - '+(ge('fill').offsetWidth / 2)+'px)');
+$(document).ready(function() {
+    $('#slider').css('visibility', 'hidden');
+});
+
+function onBodyLoad(){
+
+      startSocket();
+      startEvents();
+      startSlider();
+      ge("input_el").focus();
+      
+//      setInterval(()=>{
+        
+//        console.log(EventSource.OPEN,ws.OPEN,serverTime);
+//      },1000);
+    }
+    top.xfunc = "";
+    </script>
+  </head>
+  <body id="body" onload="onBodyLoad()"> <!-- style='overflow:hidden' //-->
+<div id="work" style='overflow-Y:scroll;overflow-X:hidden;right:0;top:0px;position:absolute;width:100%;height: calc(100% - 20px);'>
+   <pre id="dbg" style='width:100%;height:100%;'></pre>    
+</div>
+<div id="input_div" style='width:80%;position:absolute;bottom:0'><nobr>
+  [ponika ~]#<input type="text" value="" id="input_el">
+</nobr></div>
+
+<div id="slider" style="float:right;-webkit-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;"><div id="fill"></div><div id="bar"></div></div>
+<div id="null" style='display:none'></div>
+</body>
+</html>
+
